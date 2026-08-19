@@ -1,79 +1,96 @@
-/**
- * Normalizes book offers text by splitting it into non-empty, trimmed lines.
- * @param {string} text
- * @returns {string[]}
- */
-export function normalizeBookOffers(text) {
-  if (typeof text !== 'string') return [];
-  return text
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
+import { getRandomInt } from './deck.js';
+
+// Helper: Get local YYYY-MM-DD string
+export function getDateKey(date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-/**
- * Normalizes partner list by ensuring correct types and defaults.
- * @param {Array} partners
- * @returns {Object[]}
- */
-export function normalizePartners(partners) {
-  if (!Array.isArray(partners)) return [];
-  return partners.map(p => {
-    if (!p || typeof p !== 'object') {
-      return { vendor: '', offer: '', inventory: 0 };
-    }
-    const vendor = typeof p.vendor === 'string' ? p.vendor.trim() : '';
-    const offer = typeof p.offer === 'string' ? p.offer.trim() : '';
-    const rawInventory = Number(p.inventory);
-    const inventory = Number.isInteger(rawInventory) && rawInventory >= 0 ? rawInventory : 0;
-    return { vendor, offer, inventory };
-  });
+// Helper: Config signature
+export function getConfigSignature(config) {
+  // Use a stable stringified version of normalized config as signature
+  return JSON.stringify(config);
 }
 
-/**
- * Normalizes the entire prize configuration.
- * @param {Object} config
- * @returns {Object}
- */
+// Helper: UUID or random ID generator
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
 export function normalizeConfig(config) {
   if (!config || typeof config !== 'object') {
     return {
-      bookChance: 0,
-      partnerChance: 0,
-      bookOffers: [],
+      openingTime: '08:00',
+      closingTime: '17:00',
+      awards: [],
       partners: []
     };
   }
-  const rawBookChance = Number(config.bookChance);
-  const bookChance = Number.isInteger(rawBookChance) && rawBookChance >= 0 && rawBookChance <= 100 ? rawBookChance : 0;
 
-  const rawPartnerChance = Number(config.partnerChance);
-  const partnerChance = Number.isInteger(rawPartnerChance) && rawPartnerChance >= 0 && rawPartnerChance <= 100 ? rawPartnerChance : 0;
+  const openingTime = typeof config.openingTime === 'string' ? config.openingTime.trim() : '08:00';
+  const closingTime = typeof config.closingTime === 'string' ? config.closingTime.trim() : '17:00';
 
-  const bookOffers = typeof config.bookOffers === 'string'
-    ? normalizeBookOffers(config.bookOffers)
-    : (Array.isArray(config.bookOffers)
-      ? config.bookOffers
+  const awards = [];
+  if (Array.isArray(config.awards)) {
+    config.awards.forEach((item, idx) => {
+      if (item && typeof item === 'object') {
+        const id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `book-${idx}`;
+        const offer = typeof item.offer === 'string' ? item.offer.trim() : '';
+        const rawQty = Number(item.dailyQuantity);
+        const dailyQuantity = Number.isInteger(rawQty) && rawQty >= 0 ? rawQty : 0;
+        awards.push({ id, offer, dailyQuantity });
+      }
+    });
+  } else {
+    // Migrate legacy bookOffers
+    let bookOffers = [];
+    if (typeof config.bookOffers === 'string') {
+      bookOffers = config.bookOffers
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    } else if (Array.isArray(config.bookOffers)) {
+      bookOffers = config.bookOffers
         .filter(offer => typeof offer === 'string')
         .map(offer => offer.trim())
-        .filter(Boolean)
-      : []);
+        .filter(Boolean);
+    }
+    bookOffers.forEach((offer, idx) => {
+      awards.push({
+        id: `book-${idx}`,
+        offer,
+        dailyQuantity: 0
+      });
+    });
+  }
 
-  const partners = normalizePartners(config.partners);
+  const partners = [];
+  if (Array.isArray(config.partners)) {
+    config.partners.forEach((item, idx) => {
+      if (item && typeof item === 'object') {
+        const id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : `partner-${idx}`;
+        const vendor = typeof item.vendor === 'string' ? item.vendor.trim() : '';
+        const offer = typeof item.offer === 'string' ? item.offer.trim() : '';
+        const rawQty = item.dailyQuantity !== undefined ? Number(item.dailyQuantity) : Number(item.inventory);
+        const dailyQuantity = Number.isInteger(rawQty) && rawQty >= 0 ? rawQty : 0;
+        partners.push({ id, vendor, offer, dailyQuantity });
+      }
+    });
+  }
 
   return {
-    bookChance,
-    partnerChance,
-    bookOffers,
+    openingTime,
+    closingTime,
+    awards,
     partners
   };
 }
 
-/**
- * Validates the prize configuration.
- * @param {Object} config - Config to validate.
- * @returns {Object} { valid: boolean, errors: string[] }
- */
 export function validateConfig(config) {
   const errors = [];
   if (!config || typeof config !== 'object') {
@@ -81,56 +98,56 @@ export function validateConfig(config) {
     return { valid: false, errors };
   }
 
-  const bookChance = Number(config.bookChance);
-  const partnerChance = Number(config.partnerChance);
-
-  if (!Number.isInteger(bookChance) || bookChance < 0 || bookChance > 100) {
-    errors.push('Book chance must be an integer between 0 and 100.');
+  const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!timeRegex.test(config.openingTime)) {
+    errors.push('Opening time must be in HH:MM format.');
+  }
+  if (!timeRegex.test(config.closingTime)) {
+    errors.push('Closing time must be in HH:MM format.');
   }
 
-  if (!Number.isInteger(partnerChance) || partnerChance < 0 || partnerChance > 100) {
-    errors.push('Partner chance must be an integer between 0 and 100.');
-  }
-
-  if (Number.isInteger(bookChance) && Number.isInteger(partnerChance)) {
-    if (bookChance + partnerChance > 100) {
-      errors.push('Combined chance must be between 0 and 100.');
+  if (timeRegex.test(config.openingTime) && timeRegex.test(config.closingTime)) {
+    const [oh, om] = config.openingTime.split(':').map(Number);
+    const [ch, cm] = config.closingTime.split(':').map(Number);
+    if (ch * 60 + cm <= oh * 60 + om) {
+      errors.push('Closing time must be after opening time.');
     }
   }
 
-  if (Number.isInteger(bookChance) && bookChance > 0) {
-    const offers = typeof config.bookOffers === 'string'
-      ? normalizeBookOffers(config.bookOffers)
-      : normalizeConfig(config).bookOffers;
-    if (offers.length === 0) {
-      errors.push('Add at least one book offer when Book Chance is above 0%.');
-    }
-  }
-
-  if (Number.isInteger(partnerChance) && partnerChance > 0) {
-    if (!Array.isArray(config.partners) || config.partners.length === 0) {
-      errors.push('Add at least one partner when Partner Chance is above 0%.');
-    }
-  }
-
-  if (config.partners && Array.isArray(config.partners)) {
-    config.partners.forEach((p, idx) => {
-      if (!p || typeof p !== 'object') {
-        errors.push(`Partner row ${idx + 1}: Invalid partner format.`);
+  if (Array.isArray(config.awards)) {
+    config.awards.forEach((item, idx) => {
+      if (!item || typeof item !== 'object') {
+        errors.push(`Award row ${idx + 1}: Invalid format.`);
         return;
       }
-      const vendor = typeof p.vendor === 'string' ? p.vendor.trim() : '';
-      const offer = typeof p.offer === 'string' ? p.offer.trim() : '';
-      const inventory = Number(p.inventory);
+      const offer = typeof item.offer === 'string' ? item.offer.trim() : '';
+      if (!offer) {
+        errors.push(`Award row ${idx + 1}: Offer text is required.`);
+      }
+      const dailyQuantity = Number(item.dailyQuantity);
+      if (!Number.isInteger(dailyQuantity) || dailyQuantity < 0) {
+        errors.push(`Award row ${idx + 1}: Prizes per day must be a non-negative integer.`);
+      }
+    });
+  }
 
+  if (Array.isArray(config.partners)) {
+    config.partners.forEach((item, idx) => {
+      if (!item || typeof item !== 'object') {
+        errors.push(`Partner row ${idx + 1}: Invalid format.`);
+        return;
+      }
+      const vendor = typeof item.vendor === 'string' ? item.vendor.trim() : '';
+      const offer = typeof item.offer === 'string' ? item.offer.trim() : '';
       if (!vendor) {
         errors.push(`Partner row ${idx + 1}: Vendor name is required.`);
       }
       if (!offer) {
         errors.push(`Partner row ${idx + 1}: Offer text is required.`);
       }
-      if (!Number.isInteger(inventory) || inventory < 0) {
-        errors.push(`Partner row ${idx + 1}: Inventory must be a non-negative integer.`);
+      const dailyQuantity = Number(item.dailyQuantity);
+      if (!Number.isInteger(dailyQuantity) || dailyQuantity < 0) {
+        errors.push(`Partner row ${idx + 1}: Prizes per day must be a non-negative integer.`);
       }
     });
   }
@@ -141,76 +158,188 @@ export function validateConfig(config) {
   };
 }
 
-/**
- * Filters partners list for eligible ones (non-empty vendor/offer and inventory > 0).
- * @param {Object[]} partners
- * @returns {Object[]}
- */
-export function filterEligiblePartners(partners) {
-  if (!Array.isArray(partners)) return [];
-  return partners.map((p, originalIndex) => ({ ...p, originalIndex }))
-    .filter(p => {
-      const vendor = (p.vendor || '').trim();
-      const offer = (p.offer || '').trim();
-      return vendor.length > 0 && offer.length > 0 && Number.isInteger(p.inventory) && p.inventory > 0;
-    });
+function generateSlots(config, opensAt, closesAt, startMs, alreadyAwardedCounts, randomIntFn = getRandomInt) {
+  const slots = [];
+  const startSchedulingFrom = Math.max(opensAt, startMs);
+  const remainingDuration = closesAt - startSchedulingFrom;
+
+  // Process awards
+  config.awards.forEach(award => {
+    const awardedCount = alreadyAwardedCounts[award.id] || 0;
+    const remainingQty = Math.max(0, award.dailyQuantity - awardedCount);
+    if (remainingQty <= 0) return;
+
+    for (let i = 0; i < remainingQty; i++) {
+      let releaseAt;
+      if (remainingDuration <= 0) {
+        releaseAt = closesAt;
+      } else {
+        const bandStart = Math.floor(startSchedulingFrom + i * remainingDuration / remainingQty);
+        const bandEnd = Math.floor(startSchedulingFrom + (i + 1) * remainingDuration / remainingQty);
+        const bandSize = bandEnd - bandStart;
+        const offset = bandSize > 0 ? randomIntFn(bandSize) : 0;
+        releaseAt = bandStart + offset;
+      }
+
+      slots.push({
+        id: `${award.id}-${i}-${generateUUID()}`,
+        prizeId: award.id,
+        type: 'book',
+        offer: award.offer,
+        releaseAt
+      });
+    }
+  });
+
+  // Process partners
+  config.partners.forEach(partner => {
+    const awardedCount = alreadyAwardedCounts[partner.id] || 0;
+    const remainingQty = Math.max(0, partner.dailyQuantity - awardedCount);
+    if (remainingQty <= 0) return;
+
+    for (let i = 0; i < remainingQty; i++) {
+      let releaseAt;
+      if (remainingDuration <= 0) {
+        releaseAt = closesAt;
+      } else {
+        const bandStart = Math.floor(startSchedulingFrom + i * remainingDuration / remainingQty);
+        const bandEnd = Math.floor(startSchedulingFrom + (i + 1) * remainingDuration / remainingQty);
+        const bandSize = bandEnd - bandStart;
+        const offset = bandSize > 0 ? randomIntFn(bandSize) : 0;
+        releaseAt = bandStart + offset;
+      }
+
+      slots.push({
+        id: `${partner.id}-${i}-${generateUUID()}`,
+        prizeId: partner.id,
+        type: 'partner',
+        vendor: partner.vendor,
+        offer: partner.offer,
+        releaseAt
+      });
+    }
+  });
+
+  // Sort slots by releaseAt ascending
+  slots.sort((a, b) => a.releaseAt - b.releaseAt);
+  return slots;
 }
 
-/**
- * Selects a prize deterministically using the injected randomInt function.
- * @param {Object} config - The normalized config.
- * @param {Function} randomInt - Random number generator returning [0, max).
- * @returns {Object|null} Selected prize description or null.
- */
-export function selectPrize(config, randomInt) {
+export function createDailySchedule(config, todayDateObj, randomIntFn = getRandomInt) {
   const norm = normalizeConfig(config);
-  if (norm.bookChance + norm.partnerChance > 100) return null;
-  const roll = randomInt(100); // Roll in [0, 99]
+  const dateKey = getDateKey(todayDateObj);
+  const configSignature = getConfigSignature(norm);
 
-  if (roll < norm.bookChance) {
-    if (norm.bookOffers.length === 0) {
-      return null;
-    }
-    const idx = randomInt(norm.bookOffers.length);
-    return {
-      type: 'book',
-      offer: norm.bookOffers[idx]
+  const [oh, om] = norm.openingTime.split(':').map(Number);
+  const opensAt = new Date(todayDateObj.getFullYear(), todayDateObj.getMonth(), todayDateObj.getDate(), oh, om, 0, 0).getTime();
+
+  const [ch, cm] = norm.closingTime.split(':').map(Number);
+  const closesAt = new Date(todayDateObj.getFullYear(), todayDateObj.getMonth(), todayDateObj.getDate(), ch, cm, 0, 0).getTime();
+
+  const slots = generateSlots(norm, opensAt, closesAt, todayDateObj.getTime(), {}, randomIntFn);
+
+  return {
+    version: 1,
+    dateKey,
+    configSignature,
+    opensAt,
+    closesAt,
+    slots,
+    awarded: []
+  };
+}
+
+export function claimDuePrize(schedule, nowMs) {
+  if (
+    !schedule ||
+    !Array.isArray(schedule.slots) ||
+    !Array.isArray(schedule.awarded) ||
+    !Number.isFinite(schedule.opensAt) ||
+    !Number.isFinite(schedule.closesAt)
+  ) {
+    return { schedule, prize: null };
+  }
+
+  // Check bounds
+  if (nowMs < schedule.opensAt || nowMs >= schedule.closesAt) {
+    return { schedule, prize: null };
+  }
+
+  // Find the earliest due token
+  // Since slots is sorted by releaseAt, the first one is the earliest.
+  const candidate = schedule.slots[0];
+  if (candidate && nowMs >= candidate.releaseAt) {
+    const updatedSlots = schedule.slots.slice(1);
+    const claimedToken = { ...candidate, awardedAt: nowMs };
+    const updatedAwarded = [...schedule.awarded, claimedToken];
+
+    const newSchedule = {
+      ...schedule,
+      slots: updatedSlots,
+      awarded: updatedAwarded
     };
-  } else if (roll < norm.bookChance + norm.partnerChance) {
-    const eligible = filterEligiblePartners(norm.partners);
-    if (eligible.length === 0) {
-      return null;
-    }
-    const idx = randomInt(eligible.length);
-    const partner = eligible[idx];
+
     return {
-      type: 'partner',
-      vendor: partner.vendor,
-      offer: partner.offer,
-      partnerIndex: partner.originalIndex
+      schedule: newSchedule,
+      prize: candidate
     };
   }
 
-  return null;
+  return { schedule, prize: null };
 }
 
-/**
- * Decrements the inventory of a partner at the given index.
- * Ensures the inventory does not go negative.
- * @param {Object[]} partners
- * @param {number} partnerIndex
- * @returns {Object[]}
- */
-export function decrementPartnerInventory(partners, partnerIndex) {
-  if (!Array.isArray(partners)) return [];
-  return partners.map((p, idx) => {
-    if (idx === partnerIndex) {
-      const inventory = Number.isInteger(p.inventory) ? p.inventory : 0;
-      return {
-        ...p,
-        inventory: Math.max(0, inventory - 1)
-      };
+export function countAwardedByPrize(schedule) {
+  const counts = {};
+  if (schedule && Array.isArray(schedule.awarded)) {
+    for (const slot of schedule.awarded) {
+      counts[slot.prizeId] = (counts[slot.prizeId] || 0) + 1;
     }
-    return p;
-  });
+  }
+  return counts;
+}
+
+export function reconcileDailySchedule(config, schedule, nowDateObj, randomIntFn = getRandomInt) {
+  const norm = normalizeConfig(config);
+  const currentDateKey = getDateKey(nowDateObj);
+  const currentSignature = getConfigSignature(norm);
+
+  if (
+    schedule &&
+    schedule.version === 1 &&
+    schedule.dateKey === currentDateKey &&
+    schedule.configSignature === currentSignature &&
+    Array.isArray(schedule.slots) &&
+    Array.isArray(schedule.awarded) &&
+    Number.isFinite(schedule.opensAt) &&
+    Number.isFinite(schedule.closesAt)
+  ) {
+    return schedule;
+  }
+
+  // Otherwise, we need to generate a new schedule or reconcile it.
+  if (schedule && schedule.version === 1 && schedule.dateKey === currentDateKey) {
+    const awarded = Array.isArray(schedule.awarded) ? schedule.awarded : [];
+    const awardedCounts = countAwardedByPrize(schedule);
+
+    const [oh, om] = norm.openingTime.split(':').map(Number);
+    const opensAt = new Date(nowDateObj.getFullYear(), nowDateObj.getMonth(), nowDateObj.getDate(), oh, om, 0, 0).getTime();
+
+    const [ch, cm] = norm.closingTime.split(':').map(Number);
+    const closesAt = new Date(nowDateObj.getFullYear(), nowDateObj.getMonth(), nowDateObj.getDate(), ch, cm, 0, 0).getTime();
+
+    const slots = generateSlots(norm, opensAt, closesAt, nowDateObj.getTime(), awardedCounts, randomIntFn);
+
+    return {
+      version: 1,
+      dateKey: currentDateKey,
+      configSignature: currentSignature,
+      opensAt,
+      closesAt,
+      slots,
+      awarded
+    };
+  } else {
+    // New day or first time generating
+    return createDailySchedule(config, nowDateObj, randomIntFn);
+  }
 }

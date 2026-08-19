@@ -4,7 +4,7 @@
   "description": "Static iPad PWA demo of Rivet Roulette",
   "type": "module",
   "scripts": {
-    "test": "node --test test/deck.test.js",
+    "test": "node --test test/*.test.js",
     "check": "node --check public/js/app.js && node --check public/js/deck.js && node --check public/sw.js && node test/static-check.js"
   },
   "keywords": [],

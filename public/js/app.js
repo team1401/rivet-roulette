@@ -1,6 +1,13 @@
 import { compliments, insults } from './lines.js';
 import { Deck, getRandomInt } from './deck.js';
-import { normalizeConfig, validateConfig, selectPrize, decrementPartnerInventory } from './prizes.js';
+import {
+  normalizeConfig,
+  validateConfig,
+  createDailySchedule,
+  claimDuePrize,
+  countAwardedByPrize,
+  reconcileDailySchedule
+} from './prizes.js';
 
 const SESSION_DURATION_MS = 30_000;
 const PRIZE_VALIDITY_MS = 60 * 60 * 1000;
@@ -20,11 +27,13 @@ let activeUtteranceId = null;
 let activeUtterance = null;
 
 let prizeConfig = {
-  bookChance: 0,
-  partnerChance: 0,
-  bookOffers: [],
+  openingTime: '08:00',
+  closingTime: '17:00',
+  awards: [],
   partners: []
 };
+let dailySchedule = null;
+let currentAwards = []; // Temporary buffer for editing in settings dialog
 let currentPartners = []; // Temporary buffer for editing in settings dialog
 let lockTimerId = null;
 
@@ -290,22 +299,69 @@ function loadSavedPrizeConfig() {
       const parsed = JSON.parse(saved);
       prizeConfig = normalizeConfig(parsed);
     } else {
-      prizeConfig = {
-        bookChance: 0,
-        partnerChance: 0,
-        bookOffers: [],
-        partners: []
-      };
+      prizeConfig = normalizeConfig(null);
     }
   } catch (e) {
     console.warn('Failed to load prize config:', e);
-    prizeConfig = {
-      bookChance: 0,
-      partnerChance: 0,
-      bookOffers: [],
-      partners: []
-    };
+    prizeConfig = normalizeConfig(null);
   }
+}
+
+// Generate unique slot IDs
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
+
+// Load, reconcile, and save the daily schedule
+function loadAndReconcileSchedule() {
+  loadSavedPrizeConfig();
+
+  try {
+    const savedSchedule = localStorage.getItem('rivet-roulette-prize-schedule-v1');
+    if (savedSchedule) {
+      dailySchedule = JSON.parse(savedSchedule);
+    } else {
+      dailySchedule = null;
+    }
+  } catch (e) {
+    console.warn('Failed to load schedule, creating new', e);
+    dailySchedule = null;
+  }
+
+  const now = new Date();
+  dailySchedule = reconcileDailySchedule(prizeConfig, dailySchedule, now, getRandomInt);
+
+  try {
+    localStorage.setItem('rivet-roulette-prize-schedule-v1', JSON.stringify(dailySchedule));
+  } catch (e) {
+    console.warn('Failed to save daily schedule:', e);
+  }
+
+  updateAdminSummary();
+}
+
+// Update admin summary container
+function updateAdminSummary() {
+  const summaryContainer = document.getElementById('admin-summary-container');
+  if (!summaryContainer) return;
+
+  if (!dailySchedule) {
+    summaryContainer.textContent = 'No active daily schedule.';
+    return;
+  }
+
+  const totalScheduled = dailySchedule.slots.length + dailySchedule.awarded.length;
+  const totalAwarded = dailySchedule.awarded.length;
+  const totalRemaining = dailySchedule.slots.length;
+
+  summaryContainer.innerHTML = `
+    Scheduled today: <strong>${totalScheduled}</strong><br>
+    Awarded today: <strong>${totalAwarded}</strong><br>
+    Remaining today: <strong>${totalRemaining}</strong>
+  `;
 }
 
 // Session Lock Timers
@@ -444,16 +500,18 @@ function triggerSelection(category) {
     labelText = 'INSULT';
   }
 
-  // Perform prize roll
-  const prize = selectPrize(prizeConfig, getRandomInt);
-  if (prize && prize.type === 'partner') {
-    // Decrement inventory immediately
-    prizeConfig.partners = decrementPartnerInventory(prizeConfig.partners, prize.partnerIndex);
-    try {
-      localStorage.setItem('rivet-roulette-prize-config', JSON.stringify(prizeConfig));
-    } catch (e) {
-      console.warn('Failed to save updated partner inventory:', e);
-    }
+  // Perform prize roll: claim due prize
+  loadAndReconcileSchedule();
+  const nowMs = Date.now();
+  const claimResult = claimDuePrize(dailySchedule, nowMs);
+  const prize = claimResult.prize;
+  dailySchedule = claimResult.schedule;
+
+  // Persist the claimed schedule before showing the prize
+  try {
+    localStorage.setItem('rivet-roulette-prize-schedule-v1', JSON.stringify(dailySchedule));
+  } catch (e) {
+    console.warn('Failed to save claimed schedule:', e);
   }
 
   // Construct spoken text
@@ -508,6 +566,35 @@ function triggerSelection(category) {
   speakText(spokenText);
 }
 
+// Dynamic rendering of award rows in settings dialog
+function renderAwardRows() {
+  const container = document.getElementById('awards-rows-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  currentAwards.forEach((a, idx) => {
+    const row = document.createElement('div');
+    row.className = 'partner-row';
+    row.setAttribute('data-index', idx);
+
+    row.innerHTML = `
+      <div class="partner-row-header">
+        <span class="partner-row-title">Award #${idx + 1}</span>
+        <button type="button" class="btn-remove-award" data-index="${idx}">Remove</button>
+      </div>
+      <div class="partner-inputs">
+        <label for="award-offer-${idx}">Offer text</label>
+        <input type="text" id="award-offer-${idx}" class="form-control award-offer" placeholder="Offer text" value="${escapeHtml(a.offer)}">
+        <div class="partner-inventory-wrapper">
+          <label for="award-qty-${idx}">Prizes per day</label>
+          <input type="number" id="award-qty-${idx}" class="form-control award-quantity" min="0" step="1" inputmode="numeric" placeholder="0" value="${a.dailyQuantity}">
+        </div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
 // Dynamic rendering of partner rows in settings dialog
 function renderPartnerRows() {
   const container = document.getElementById('partner-rows-container');
@@ -530,8 +617,8 @@ function renderPartnerRows() {
         <label for="partner-offer-${idx}">Offer text</label>
         <input type="text" id="partner-offer-${idx}" class="form-control partner-offer" placeholder="Offer text" value="${escapeHtml(p.offer)}">
         <div class="partner-inventory-wrapper">
-          <label for="partner-inv-${idx}">Prizes remaining</label>
-          <input type="number" id="partner-inv-${idx}" class="form-control partner-inventory" min="0" step="1" inputmode="numeric" placeholder="0" value="${p.inventory}">
+          <label for="partner-qty-${idx}">Prizes per day</label>
+          <input type="number" id="partner-qty-${idx}" class="form-control partner-quantity" min="0" step="1" inputmode="numeric" placeholder="0" value="${p.dailyQuantity}">
         </div>
       </div>
     `;
@@ -540,18 +627,20 @@ function renderPartnerRows() {
 }
 
 function loadSettingsIntoDialog() {
-  loadSavedPrizeConfig();
+  loadAndReconcileSchedule();
 
-  const bookChanceInput = document.getElementById('book-chance');
-  const partnerChanceInput = document.getElementById('partner-chance');
-  const bookOffersInput = document.getElementById('book-offers');
+  const opensInput = document.getElementById('expo-opens');
+  const closesInput = document.getElementById('expo-closes');
 
-  if (bookChanceInput) bookChanceInput.value = prizeConfig.bookChance;
-  if (partnerChanceInput) partnerChanceInput.value = prizeConfig.partnerChance;
-  if (bookOffersInput) bookOffersInput.value = prizeConfig.bookOffers.join('\n');
+  if (opensInput) opensInput.value = prizeConfig.openingTime;
+  if (closesInput) closesInput.value = prizeConfig.closingTime;
 
+  currentAwards = prizeConfig.awards.map(a => ({ ...a }));
   currentPartners = prizeConfig.partners.map(p => ({ ...p }));
+
+  renderAwardRows();
   renderPartnerRows();
+  updateAdminSummary();
 
   const errDiv = document.getElementById('settings-error');
   const succDiv = document.getElementById('settings-success');
@@ -585,12 +674,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnReplay = document.getElementById('btn-replay');
   const btnResetDecks = document.getElementById('btn-reset-decks');
 
+  const awardsRowsContainer = document.getElementById('awards-rows-container');
+  const btnAddAward = document.getElementById('btn-add-award');
   const partnerRowsContainer = document.getElementById('partner-rows-container');
   const btnAddPartner = document.getElementById('btn-add-partner');
   const btnSaveSettings = document.getElementById('btn-save-settings');
 
-  // Load prize config first
-  loadSavedPrizeConfig();
+  // Load prize config and schedule first
+  loadAndReconcileSchedule();
 
   // Check session lock immediately
   checkSessionLock();
@@ -702,6 +793,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Handle awards rows interaction inside dialog
+  if (awardsRowsContainer) {
+    awardsRowsContainer.addEventListener('input', (e) => {
+      const row = e.target.closest('.partner-row');
+      if (!row) return;
+      const idx = parseInt(row.getAttribute('data-index'), 10);
+      if (e.target.classList.contains('award-offer')) {
+        currentAwards[idx].offer = e.target.value;
+      } else if (e.target.classList.contains('award-quantity')) {
+        currentAwards[idx].dailyQuantity = e.target.value;
+      }
+    });
+
+    awardsRowsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-remove-award')) {
+        const idx = parseInt(e.target.getAttribute('data-index'), 10);
+        currentAwards.splice(idx, 1);
+        renderAwardRows();
+      }
+    });
+  }
+
+  if (btnAddAward) {
+    btnAddAward.addEventListener('click', () => {
+      currentAwards.push({ id: generateUUID(), offer: '', dailyQuantity: 0 });
+      renderAwardRows();
+    });
+  }
+
   // Handle partner rows interaction inside dialog
   if (partnerRowsContainer) {
     partnerRowsContainer.addEventListener('input', (e) => {
@@ -712,8 +832,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPartners[idx].vendor = e.target.value;
       } else if (e.target.classList.contains('partner-offer')) {
         currentPartners[idx].offer = e.target.value;
-      } else if (e.target.classList.contains('partner-inventory')) {
-        currentPartners[idx].inventory = e.target.value;
+      } else if (e.target.classList.contains('partner-quantity')) {
+        currentPartners[idx].dailyQuantity = e.target.value;
       }
     });
 
@@ -728,21 +848,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnAddPartner) {
     btnAddPartner.addEventListener('click', () => {
-      currentPartners.push({ vendor: '', offer: '', inventory: 0 });
+      currentPartners.push({ id: generateUUID(), vendor: '', offer: '', dailyQuantity: 0 });
       renderPartnerRows();
     });
   }
 
   if (btnSaveSettings && settingsDialog) {
     btnSaveSettings.addEventListener('click', () => {
-      const bookChanceInput = document.getElementById('book-chance');
-      const partnerChanceInput = document.getElementById('partner-chance');
-      const bookOffersInput = document.getElementById('book-offers');
+      const opensInput = document.getElementById('expo-opens');
+      const closesInput = document.getElementById('expo-closes');
 
       const configToValidate = {
-        bookChance: bookChanceInput ? Number(bookChanceInput.value) : 0,
-        partnerChance: partnerChanceInput ? Number(partnerChanceInput.value) : 0,
-        bookOffers: bookOffersInput ? bookOffersInput.value : '',
+        openingTime: opensInput ? opensInput.value : '08:00',
+        closingTime: closesInput ? closesInput.value : '17:00',
+        awards: currentAwards,
         partners: currentPartners
       };
 
@@ -771,6 +890,10 @@ document.addEventListener('DOMContentLoaded', () => {
       prizeConfig = normalized;
       try {
         localStorage.setItem('rivet-roulette-prize-config', JSON.stringify(prizeConfig));
+
+        // Reconcile immediately on save
+        loadAndReconcileSchedule();
+
         if (succDiv) {
           succDiv.textContent = 'Settings saved successfully!';
           succDiv.style.display = 'block';
@@ -797,11 +920,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       checkSessionLock();
+      loadAndReconcileSchedule();
     }
   });
 
   window.addEventListener('focus', () => {
     checkSessionLock();
+    loadAndReconcileSchedule();
   });
 });
 

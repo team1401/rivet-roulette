@@ -94,32 +94,40 @@
 
         <hr class="form-separator">
         <h3 class="settings-section-title">Prize Configuration</h3>
-        <p class="form-help">Chances apply to each 30-second turn. Book and partner chances combined cannot exceed 100%.</p>
 
         <div class="form-group-row">
           <div class="form-group">
-            <label for="book-chance">Book Chance (%)</label>
-            <input type="number" id="book-chance" min="0" max="100" step="1" inputmode="numeric" class="form-control" value="0">
+            <label for="expo-opens">Expo Opens (HH:MM)</label>
+            <input type="time" id="expo-opens" class="form-control" value="08:00" step="60">
           </div>
           <div class="form-group">
-            <label for="partner-chance">Partner Chance (%)</label>
-            <input type="number" id="partner-chance" min="0" max="100" step="1" inputmode="numeric" class="form-control" value="0">
+            <label for="expo-closes">Expo Closes (HH:MM)</label>
+            <input type="time" id="expo-closes" class="form-control" value="17:00" step="60">
           </div>
         </div>
 
         <div class="form-group">
-          <label for="book-offers">Book Offers (one per line)</label>
-          <textarea id="book-offers" class="form-control textarea-offers" rows="3" placeholder="e.g. 10% off any book"></textarea>
-          <p class="form-help">Each nonempty line is one unlimited-use offer selected at random.</p>
+          <label>Your Awards</label>
+          <p class="form-help">Daily quantities of Nomad's Edge book awards. Set to 0 to disable.</p>
+          <div id="awards-rows-container" class="partner-rows-container">
+            <!-- Dynamic award rows -->
+          </div>
+          <button type="button" id="btn-add-award" class="dialog-btn secondary-btn small-btn">+ Add Award</button>
         </div>
 
         <div class="form-group">
           <label>Partner Perks</label>
-          <p class="form-help">Inventory decreases as prizes are awarded. A partner with zero remaining is skipped automatically.</p>
+          <p class="form-help">Daily quantities of partner offers. A partner with zero scheduled is skipped automatically.</p>
           <div id="partner-rows-container" class="partner-rows-container">
             <!-- Dynamic partner rows -->
           </div>
           <button type="button" id="btn-add-partner" class="dialog-btn secondary-btn small-btn">+ Add Partner</button>
+        </div>
+
+        <hr class="form-separator">
+        <h3 class="settings-section-title">Admin summary</h3>
+        <div id="admin-summary-container" class="form-help" style="margin-bottom: 0.75rem;">
+          <!-- Summary info: today's total scheduled, awarded, and remaining counts -->
         </div>
 
         <div id="settings-error" class="inline-error" role="alert" style="display: none; color: var(--color-insult-hex); font-weight: bold; margin-bottom: 0.5rem;"></div>

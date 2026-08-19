@@ -1,50 +1,63 @@
-# Prize and Partner Feature Brief
+# Daily Prize and Partner Feature Brief
 
 ## Confirmed behavior
 
 - The first Compliment or Insult tap begins a 30-second session.
-- Only one play and one prize roll are allowed during that session.
+- Only one play and at most one prize award are allowed during that session.
 - Both primary buttons remain locked until the screen returns to READY after 30 seconds.
 - The session lock persists across refreshes and reopening the PWA.
-- Any awarded prize is spoken after the compliment or insult.
 - The prize proof displays the iPad's current local date/time, an expiration exactly one hour later, and instructions to photograph the screen.
 - There are no coupon codes. The photograph is the proof shown to the vendor.
-- The app remains offline-first and stores configuration and inventory locally on one iPad.
-- Admin settings are protected by PIN 4167.
+- The app remains offline-first and stores configuration, the hidden schedule, and awarded counts locally on one iPad.
+- Admin settings remain PIN protected.
 
-## Prize model
+## Daily prize model
 
-- Book discounts and partner perks have separate configurable integer percentages.
-- Their combined percentage cannot exceed 100.
-- At most one prize can be awarded per session.
-- Book offers are unlimited-use text entries, one per line.
-- Partner offers contain vendor name, offer text, and remaining inventory.
-- Partners with zero inventory are ineligible.
-- Eligible partner offers are selected uniformly.
-- Partner inventory decrements immediately when the prize is awarded because the photo becomes the redemption proof.
-- If a configured prize category has no eligible offers, its probability band yields no prize rather than shifting probability to another category.
+- Percentage-per-spin prize rolls are removed.
+- Expo Hall hours default to 8:00 AM through 5:00 PM in the iPad's local timezone.
+- Every Nomad's Edge award and every partner offer has a configurable nonnegative integer `prizes per day` quantity.
+- Each configured unit becomes one hidden daily prize token.
+- The algorithm divides the operating window into equal bands separately for each prize type and places one token at a cryptographically random time inside each band.
+- Example: three Vendor A prizes create one randomized release in each third of the open day.
+- All award and vendor tokens are merged and sorted into one coordinated daily timeline.
+- A token cannot be awarded before its release time.
+- The first eligible turn at or after release claims the earliest due token.
+- Only one token is claimed per 30-second turn. Additional overdue tokens remain queued for later turns.
+- No token is awarded before opening or at/after closing.
+- Unawarded tokens do not carry into the next local calendar day. A fresh schedule is generated for the new day.
+- If the app first starts after opening, the full configured inventory is distributed across the remaining open hours rather than creating an immediate overdue backlog.
+
+## Persistence and settings edits
+
+- The complete schedule is generated once and persisted so refreshes, PWA reopening, sleep, and offline operation do not reroll release times.
+- Same-day settings edits preserve already-awarded counts by stable prize ID.
+- Only each prize's remaining daily quantity is rescheduled after a settings change.
+- Reducing a daily quantity below its already-awarded count never creates negative inventory or additional tokens.
+- Malformed saved schedule arrays are discarded and regenerated rather than breaking the kiosk.
 
 ## Admin experience
 
-- Tapping the gear opens a PIN prompt.
+- Tapping the gear opens the existing PIN prompt.
 - Correct PIN opens settings; closing settings relocks it.
-- Settings retain voice/rate controls and add:
-  - Book discount chance
-  - Book offers textarea, one exact offer per line
-  - Partner perk chance
+- Settings retain voice/rate controls and provide:
+  - Native Expo Opens and Expo Closes time controls
+  - Add/edit/remove Nomad's Edge award rows
+  - Exact award offer text
+  - Prizes per day for each award
   - Add/edit/remove partner rows
   - Vendor name
-  - Offer text
-  - Remaining inventory
+  - Exact offer text
+  - Prizes per day for each partner offer
+  - Today's scheduled, awarded, and remaining totals
   - Validation and save feedback
-- Empty prize configuration defaults both chances to zero.
+- A quantity of zero disables that offer.
 
 ## Prize proof
 
-The visible prize proof must include:
+The visible prize proof includes:
 
 - Clear prize headline
-- Book discount or partner vendor name
+- Nomad's Edge Books or partner vendor name
 - Exact offer text
 - Awarded local date/time with timezone
 - Valid-until local date/time, one hour later
@@ -53,4 +66,4 @@ The visible prize proof must include:
 
 ## Limitations
 
-This is an offline single-iPad system. The iPad clock is the time authority. Changing the device clock, clearing site data, reinstalling the PWA, or using another device can bypass local session and inventory state. Multi-device authoritative redemption would require a backend and is outside this feature.
+This is an offline single-iPad system. The iPad clock is the time authority. Changing the device clock, clearing site data, reinstalling the PWA, or using another device can erase or bypass local session, schedule, and award state. Multi-device authoritative inventory or redemption would require a backend and is outside this feature.

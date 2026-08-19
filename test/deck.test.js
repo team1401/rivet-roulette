@@ -6,13 +6,12 @@ import { fileURLToPath } from 'node:url';
 import { compliments, insults } from '../public/js/lines.js';
 import { Deck, getRandomInt, shuffle, generateNewRound } from '../public/js/deck.js';
 import {
-  normalizeBookOffers,
-  normalizePartners,
   normalizeConfig,
   validateConfig,
-  filterEligiblePartners,
-  selectPrize,
-  decrementPartnerInventory
+  createDailySchedule,
+  claimDuePrize,
+  countAwardedByPrize,
+  reconcileDailySchedule
 } from '../public/js/prizes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -150,174 +149,6 @@ test('Deck: invalid persisted state recovery', () => {
   assert.strictEqual(new Set(deck.shuffledIndices).size, 72, 'Recovered deck must be a full permutation');
 });
 
-test('Prizes: config normalization and invalid config handling', () => {
-  // Test normalizeConfig defaults
-  const emptyNorm = normalizeConfig(null);
-  assert.strictEqual(emptyNorm.bookChance, 0);
-  assert.strictEqual(emptyNorm.partnerChance, 0);
-  assert.deepStrictEqual(emptyNorm.bookOffers, []);
-  assert.deepStrictEqual(emptyNorm.partners, []);
-
-  // Test normalizeConfig with some valid/invalid values
-  const input = {
-    bookChance: '15.5',
-    partnerChance: 'abc',
-    bookOffers: 'Offer 1\n\nOffer 2  \n',
-    partners: [
-      { vendor: 'V1', offer: 'O1', inventory: '5' },
-      { vendor: '  ', offer: 'O2', inventory: -2 }
-    ]
-  };
-  const norm = normalizeConfig(input);
-  assert.strictEqual(norm.bookChance, 0, 'Decimal chances must not be silently truncated');
-  assert.strictEqual(norm.partnerChance, 0);
-  assert.deepStrictEqual(norm.bookOffers, ['Offer 1', 'Offer 2']);
-  assert.strictEqual(norm.partners.length, 2);
-  assert.strictEqual(norm.partners[0].vendor, 'V1');
-  assert.strictEqual(norm.partners[0].inventory, 5);
-  assert.strictEqual(norm.partners[1].vendor, '');
-  assert.strictEqual(norm.partners[1].inventory, 0);
-
-  // Test validateConfig
-  const invalidConfig = {
-    bookChance: 60,
-    partnerChance: 50, // sum = 110 > 100
-    partners: [
-      { vendor: '', offer: 'O1', inventory: 5 },
-      { vendor: 'V2', offer: '', inventory: -1 }
-    ]
-  };
-  const validation = validateConfig(invalidConfig);
-  assert.strictEqual(validation.valid, false);
-  assert.ok(validation.errors.some(e => e.includes('Combined chance')));
-  assert.ok(validation.errors.some(e => e.includes('Vendor name is required')));
-  assert.ok(validation.errors.some(e => e.includes('Offer text is required')));
-  assert.ok(validation.errors.some(e => e.includes('Inventory must be a non-negative')));
-
-  const decimalValidation = validateConfig({
-    bookChance: 12.5,
-    partnerChance: 0,
-    bookOffers: ['Valid offer'],
-    partners: []
-  });
-  assert.strictEqual(decimalValidation.valid, false);
-  assert.ok(decimalValidation.errors.some(e => e.includes('integer')));
-});
-
-test('Prizes: exact probability boundaries', () => {
-  const config = {
-    bookChance: 10,
-    partnerChance: 20,
-    bookOffers: ['Book Offer'],
-    partners: [{ vendor: 'PV', offer: 'Partner Offer', inventory: 5 }]
-  };
-
-  // If roll is < 10 (e.g. 0, 9), it should select book
-  let rollVal = 0;
-  const mockRandomInt = (max) => {
-    if (max === 100) return rollVal;
-    return 0; // selection index
-  };
-
-  rollVal = 0;
-  assert.strictEqual(selectPrize(config, mockRandomInt).type, 'book');
-  rollVal = 9;
-  assert.strictEqual(selectPrize(config, mockRandomInt).type, 'book');
-
-  // If roll is >= 10 and < 30 (e.g. 10, 29), it should select partner
-  rollVal = 10;
-  assert.strictEqual(selectPrize(config, mockRandomInt).type, 'partner');
-  rollVal = 29;
-  assert.strictEqual(selectPrize(config, mockRandomInt).type, 'partner');
-
-  // If roll is >= 30, it should select null
-  rollVal = 30;
-  assert.strictEqual(selectPrize(config, mockRandomInt), null);
-  rollVal = 99;
-  assert.strictEqual(selectPrize(config, mockRandomInt), null);
-
-  assert.strictEqual(selectPrize({ ...config, bookChance: 90, partnerChance: 20 }, mockRandomInt), null,
-    'Tampered configs above a combined 100% must not award a prize');
-});
-
-test('Prizes: no eligible offers yields nothing', () => {
-  const config = {
-    bookChance: 50,
-    partnerChance: 50,
-    bookOffers: [], // no book offers
-    partners: [] // no partners
-  };
-
-  // Even if roll falls in book/partner band, it must return null (does not transfer probability)
-  let rollVal = 10; // book band
-  const mockRandomInt = (max) => (max === 100 ? rollVal : 0);
-
-  assert.strictEqual(selectPrize(config, mockRandomInt), null);
-
-  rollVal = 60; // partner band
-  assert.strictEqual(selectPrize(config, mockRandomInt), null);
-});
-
-test('Prizes: zero-inventory partner exclusion', () => {
-  const config = {
-    bookChance: 0,
-    partnerChance: 100,
-    bookOffers: [],
-    partners: [
-      { vendor: 'P1', offer: 'O1', inventory: 0 }, // ineligible
-      { vendor: 'P2', offer: 'O2', inventory: 1 }  // eligible
-    ]
-  };
-
-  // Should only ever select P2
-  const mockRandomInt = (max) => {
-    if (max === 100) return 50; // falls in partner band
-    return 0; // index of eligible partners array
-  };
-
-  const prize = selectPrize(config, mockRandomInt);
-  assert.ok(prize);
-  assert.strictEqual(prize.vendor, 'P2');
-  assert.strictEqual(prize.partnerIndex, 1); // original index is preserved
-});
-
-test('Prizes: deterministic partner offer selection', () => {
-  const config = {
-    bookChance: 0,
-    partnerChance: 100,
-    bookOffers: [],
-    partners: [
-      { vendor: 'P1', offer: 'O1', inventory: 5 },
-      { vendor: 'P2', offer: 'O2', inventory: 5 },
-      { vendor: 'P3', offer: 'O3', inventory: 5 }
-    ]
-  };
-
-  // Mock random to select index 1 (P2)
-  const mockRandomInt = (max) => {
-    if (max === 100) return 50;
-    return 1; // select index 1 of eligible array
-  };
-
-  const prize = selectPrize(config, mockRandomInt);
-  assert.ok(prize);
-  assert.strictEqual(prize.vendor, 'P2');
-  assert.strictEqual(prize.partnerIndex, 1);
-});
-
-test('Prizes: partner inventory decrement without going negative', () => {
-  const partners = [
-    { vendor: 'P1', offer: 'O1', inventory: 1 },
-    { vendor: 'P2', offer: 'O2', inventory: 0 }
-  ];
-
-  const decremented1 = decrementPartnerInventory(partners, 0);
-  assert.strictEqual(decremented1[0].inventory, 0);
-
-  const decremented2 = decrementPartnerInventory(partners, 1);
-  assert.strictEqual(decremented2[1].inventory, 0, 'Must not go negative');
-});
-
 test('Session: static constants check', () => {
   const appPath = path.join(__dirname, '../public/js/app.js');
   const app = fs.readFileSync(appPath, 'utf8');
@@ -336,12 +167,16 @@ test('HTML: PIN dialog and prize proof elements exist', () => {
   assert.ok(html.includes('id="pin-error"'), 'HTML must have an element with id="pin-error"');
 
   // Verify Settings extensions exist
-  assert.ok(html.includes('id="book-chance"'), 'HTML must have an input with id="book-chance"');
-  assert.ok(html.includes('id="partner-chance"'), 'HTML must have an input with id="partner-chance"');
-  assert.ok(html.includes('id="book-offers"'), 'HTML must have textarea with id="book-offers"');
+  assert.ok(html.includes('id="expo-opens"'), 'HTML must have an input with id="expo-opens"');
+  assert.ok(html.includes('id="expo-closes"'), 'HTML must have an input with id="expo-closes"');
+  assert.ok(html.includes('type="time" id="expo-opens"'), 'Expo opening must use the native time input');
+  assert.ok(html.includes('type="time" id="expo-closes"'), 'Expo closing must use the native time input');
+  assert.ok(html.includes('id="awards-rows-container"'), 'HTML must have container with id="awards-rows-container"');
+  assert.ok(html.includes('id="btn-add-award"'), 'HTML must have Add Award button');
   assert.ok(html.includes('id="partner-rows-container"'), 'HTML must have container with id="partner-rows-container"');
   assert.ok(html.includes('id="btn-add-partner"'), 'HTML must have Add Partner button');
   assert.ok(html.includes('id="btn-save-settings"'), 'HTML must have Save Settings button');
+  assert.ok(html.includes('id="admin-summary-container"'), 'HTML must have summary container');
 
   // Verify Prize proof container inside result-stage
   assert.ok(html.includes('id="prize-proof-container"'), 'HTML must have container with id="prize-proof-container"');
@@ -352,5 +187,5 @@ test('SW: prize.js listed in offline cache assets', () => {
   const sw = fs.readFileSync(swPath, 'utf8');
 
   assert.ok(sw.includes('js/prizes.js'), 'Service worker assets must include js/prizes.js');
-  assert.ok(sw.includes('rivet-roulette-v4'), 'Service worker cache version must be updated to v4');
+  assert.ok(sw.includes("rivet-roulette-v6"), 'Service worker cache version must be updated to v6');
 });

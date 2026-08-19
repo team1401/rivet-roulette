@@ -73,12 +73,12 @@ This offline iPad PWA includes an integrated prize and partner perk system desig
 - When the timer expires, the app returns to the default READY state.
 
 ### Prize Model & Configuration
-- **Book Discount Chance**: A configurable frequency (0-100%) for book prizes.
-- **Book Offers**: A plain-text list of offers, one per line. Unlimited use.
-- **Partner Perk Chance**: A configurable frequency (0-100%) for partner prizes.
-- **Partner Offers**: A list of partners, each containing a vendor name, offer text, and remaining inventory.
-- **Mutual Exclusion**: Book chance is checked first, then partner chance. Combined chance cannot exceed 100%. If a selected category has no eligible offers, no prize is awarded (the chance is not transferred).
-- **Inventory Semantics**: Partners with zero remaining inventory are automatically excluded and can never win. Partner inventory decrements by 1 immediately when awarded and persists to local storage.
+- **Daily Randomized Schedule**: Prizes are distributed across a configurable daily window (defaulting to 08:00 through 17:00 in the iPad's local timezone).
+- **Prizes & Inventory**: Both Nomad's Edge book awards ("Your Awards") and Partner Perks are configured with stable IDs and non-negative daily quantities. The system generates one hidden prize token per unit.
+- **Stratified Release Times**: For each configured prize of quantity N, the day's event interval is divided into N equal time bands, and one release time is selected cryptographically at random within each band. All tokens are then merged by release time.
+- **Claim Semantics**: Prizes can only be claimed during active hours (between opening and closing times). A spin may claim only the earliest due unclaimed token. Overdue tokens remain due if traffic is absent, but multiple overdue tokens require multiple visitor turns (respecting the 30-second spin lock).
+- **Persistence & Reconciliation**: The schedule and awarded counts are persisted in `localStorage`. Saving edits on the same day preserves already awarded counts and reschedules only the remaining quantity. A new calendar day resets awarded counts and generates a new daily schedule.
+- **Admin Summary**: An admin-only summary displays today's total scheduled, awarded, and remaining counts without exposing future release times.
 
 ### Screenshot-Friendly Proof-Photo Workflow
 - When a prize is awarded, a high-contrast screenshot-friendly voucher is displayed in the result area.
@@ -97,4 +97,4 @@ This offline iPad PWA includes an integrated prize and partner perk system desig
 
 ### Offline & Device-Clock Limitations
 - Since this PWA operates entirely on-device and offline, the iPad's system clock serves as the sole time authority.
-- Resetting the device clock, clearing browser site data, or reinstalling the web app can bypass session locks and reset partner inventory.
+- Resetting the device clock, clearing browser site data, or reinstalling the web app can bypass session locks and erase prize configuration, the hidden daily schedule, and awarded counts.
