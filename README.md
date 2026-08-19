@@ -40,7 +40,11 @@ The primary deployment runs on the physical Airstream server and is available ov
 
 `https://airstream.tail4532cc.ts.net:10443`
 
-Deployment files are under `deploy/airstream/`. The nginx container binds only to `127.0.0.1:18088`; Tailscale Serve provides HTTPS on port `10443`. The app is not exposed directly on the LAN or public internet.
+Deployment files are under `deploy/airstream/`. The nginx container binds to `127.0.0.1:18088` for Tailscale Serve and specifically to the Airstream LAN address at `192.168.50.5:18088`. It is not bound to every host interface and is not exposed to the public internet.
+
+LAN access: `http://192.168.50.5:18088`
+
+The LAN URL is suitable for viewing and normal online use. Service workers and Home Screen PWA installation require a secure context, so use the Tailnet HTTPS URL for installation and verified offline caching.
 
 Deploy from the repository root:
 

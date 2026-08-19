@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:18088:80"
+      - "192.168.50.5:18088:80"
     volumes:
       - ./public:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/nginx.conf:ro

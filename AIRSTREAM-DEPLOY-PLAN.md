@@ -7,5 +7,5 @@
 3. Bump the service-worker cache version so installed iPads receive the new line deck.
 4. Run unit, static, syntax, uniqueness, and content checks. Exercise both 144-card decks in a browser.
 5. Commit the app change.
-6. Deploy `public/` to an isolated nginx container on Airstream, bound to loopback only.
+6. Deploy `public/` to an isolated nginx container on Airstream, bound to loopback for Tailscale Serve and specifically to `192.168.50.5` for LAN access.
 7. Add an unused Tailscale Serve HTTPS port and verify online, cache-controlled, and offline PWA behavior.
