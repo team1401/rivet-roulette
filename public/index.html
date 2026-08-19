@@ -138,6 +138,30 @@
         </div>
 
         <hr class="form-separator">
+        <h3 class="settings-section-title">Reports</h3>
+
+        <div class="form-group">
+          <label for="report-scope">Report Scope</label>
+          <select id="report-scope" class="form-control">
+            <option value="today">Today</option>
+            <option value="all">All Time</option>
+          </select>
+        </div>
+
+        <div id="report-metrics" class="report-metrics-container">
+          <!-- Dynamically populated metrics -->
+        </div>
+
+        <div id="report-breakdown" class="report-breakdown-container">
+          <!-- Dynamically populated breakdown -->
+        </div>
+
+        <div class="form-actions" style="margin-bottom: 1rem;">
+          <button id="btn-export-reports" type="button" class="dialog-btn secondary-btn">Export CSV</button>
+          <button id="btn-reset-reports" type="button" class="dialog-btn danger-btn">Reset Reports</button>
+        </div>
+
+        <hr class="form-separator">
         <h3 class="settings-section-title">Actions</h3>
 
         <div class="form-actions">

@@ -177,15 +177,41 @@ test('HTML: PIN dialog and prize proof elements exist', () => {
   assert.ok(html.includes('id="btn-add-partner"'), 'HTML must have Add Partner button');
   assert.ok(html.includes('id="btn-save-settings"'), 'HTML must have Save Settings button');
   assert.ok(html.includes('id="admin-summary-container"'), 'HTML must have summary container');
+  assert.ok(html.includes('id="report-scope"'), 'HTML must have report scope selector');
+  assert.ok(html.includes('id="report-metrics"'), 'HTML must have report metrics container');
+  assert.ok(html.includes('id="report-breakdown"'), 'HTML must have report breakdown container');
+  assert.ok(html.includes('id="btn-export-reports"'), 'HTML must have report export button');
+  assert.ok(html.includes('id="btn-reset-reports"'), 'HTML must have report reset button');
 
   // Verify Prize proof container inside result-stage
   assert.ok(html.includes('id="prize-proof-container"'), 'HTML must have container with id="prize-proof-container"');
 });
 
-test('SW: prize.js listed in offline cache assets', () => {
+test('SW: prize and report modules are listed in cache v7', () => {
   const swPath = path.join(__dirname, '../public/sw.js');
   const sw = fs.readFileSync(swPath, 'utf8');
 
   assert.ok(sw.includes('js/prizes.js'), 'Service worker assets must include js/prizes.js');
-  assert.ok(sw.includes("rivet-roulette-v6"), 'Service worker cache version must be updated to v6');
+  assert.ok(sw.includes('js/reports.js'), 'Service worker assets must include js/reports.js');
+  assert.ok(sw.includes("rivet-roulette-v7"), 'Service worker cache version must be updated to v7');
+});
+
+test('Admin reports: settings dialog is wide enough for the full breakdown table', () => {
+  const cssPath = path.join(__dirname, '../public/styles.css');
+  const css = fs.readFileSync(cssPath, 'utf8');
+  assert.match(
+    css,
+    /#settings-dialog\s*\{[^}]*max-width:\s*780px/s,
+    'the main settings dialog must be wider than the compact PIN dialog'
+  );
+});
+
+test('Admin reports: iPad CSV download keeps the Blob URL alive long enough', () => {
+  const appPath = path.join(__dirname, '../public/js/app.js');
+  const app = fs.readFileSync(appPath, 'utf8');
+  assert.ok(app.includes("type: 'text/csv;charset=utf-8'"), 'CSV MIME type must be valid');
+  assert.ok(
+    app.includes('window.setTimeout(() => URL.revokeObjectURL(url), 120_000);'),
+    'CSV Blob URL must remain available while iPad Safari confirms the download'
+  );
 });

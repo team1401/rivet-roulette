@@ -8,6 +8,14 @@ import {
   countAwardedByPrize,
   reconcileDailySchedule
 } from './prizes.js';
+import {
+  normalizeReportStore,
+  createSpinEvent,
+  recordSpin,
+  getReportDateKeys,
+  summarizeReport,
+  reportToCsv
+} from './reports.js';
 
 const SESSION_DURATION_MS = 30_000;
 const PRIZE_VALIDITY_MS = 60 * 60 * 1000;
@@ -364,6 +372,130 @@ function updateAdminSummary() {
   `;
 }
 
+function updateScopeSelector(store) {
+  const scopeSelect = document.getElementById('report-scope');
+  if (!scopeSelect) return;
+
+  const currentVal = scopeSelect.value;
+  const dateKeys = getReportDateKeys(store);
+
+  const desiredOptions = [
+    { value: 'today', text: 'Today' },
+    { value: 'all', text: 'All Time' },
+    ...dateKeys.map(k => ({ value: k, text: k }))
+  ];
+
+  const currentOptions = Array.from(scopeSelect.options).map(opt => ({ value: opt.value, text: opt.textContent }));
+  const match = currentOptions.length === desiredOptions.length &&
+                currentOptions.every((opt, i) => opt.value === desiredOptions[i].value);
+
+  if (!match) {
+    scopeSelect.innerHTML = '';
+    for (const optInfo of desiredOptions) {
+      const opt = document.createElement('option');
+      opt.value = optInfo.value;
+      opt.textContent = optInfo.text;
+      scopeSelect.appendChild(opt);
+    }
+
+    const hasCurrent = desiredOptions.some(o => o.value === currentVal);
+    if (hasCurrent) {
+      scopeSelect.value = currentVal;
+    } else {
+      scopeSelect.value = 'today';
+    }
+  }
+}
+
+function refreshReports() {
+  let store = null;
+  try {
+    const saved = localStorage.getItem('rivet-roulette-report-events-v1');
+    store = saved ? JSON.parse(saved) : null;
+  } catch (e) {
+    console.warn('Failed to parse report store from localStorage:', e);
+  }
+
+  store = normalizeReportStore(store);
+  updateScopeSelector(store);
+
+  const scopeSelect = document.getElementById('report-scope');
+  const scope = scopeSelect ? scopeSelect.value : 'today';
+  const summary = summarizeReport(store, scope, new Date());
+
+  const metricsContainer = document.getElementById('report-metrics');
+  if (metricsContainer) {
+    metricsContainer.innerHTML = `
+      <div class="report-metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Total Spins</div>
+          <div class="metric-value">${summary.spins}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Compliments</div>
+          <div class="metric-value">${summary.compliments} <span class="metric-pct">(${summary.complimentPercent}%)</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Insults</div>
+          <div class="metric-value">${summary.insults} <span class="metric-pct">(${summary.insultPercent}%)</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Prizes Awarded</div>
+          <div class="metric-value">${summary.prizes} <span class="metric-pct">(${summary.prizeRate}%)</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">No-Prize Spins</div>
+          <div class="metric-value">${summary.noPrize}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Prizes w/ Compliments</div>
+          <div class="metric-value">${summary.prizesByChoice.compliment}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Prizes w/ Insults</div>
+          <div class="metric-value">${summary.prizesByChoice.insult}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const breakdownContainer = document.getElementById('report-breakdown');
+  if (breakdownContainer) {
+    if (summary.breakdown.length === 0) {
+      breakdownContainer.innerHTML = `<div class="report-empty-state">No prize wins to display in this scope.</div>`;
+    } else {
+      breakdownContainer.innerHTML = `
+        <div class="report-table-wrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Offer</th>
+                <th>Type</th>
+                <th>Wins</th>
+                <th>Compliments</th>
+                <th>Insults</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${summary.breakdown.map(row => `
+                <tr>
+                  <td>${escapeHtml(row.provider)}</td>
+                  <td>${escapeHtml(row.offer)}</td>
+                  <td class="cell-type">${escapeHtml(row.type)}</td>
+                  <td class="cell-num">${row.wins}</td>
+                  <td class="cell-num">${row.compliment}</td>
+                  <td class="cell-num">${row.insult}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+  }
+}
+
 // Session Lock Timers
 function startLockTimer(expiresTimestamp) {
   if (lockTimerId) clearInterval(lockTimerId);
@@ -514,6 +646,28 @@ function triggerSelection(category) {
     console.warn('Failed to save claimed schedule:', e);
   }
 
+  // Record spin report event
+  try {
+    let reportStore = null;
+    try {
+      const savedReports = localStorage.getItem('rivet-roulette-report-events-v1');
+      reportStore = savedReports ? JSON.parse(savedReports) : null;
+    } catch (_) {}
+
+    const event = createSpinEvent({
+      category,
+      prize,
+      timestamp: nowMs,
+      bookProvider: BOOK_PROVIDER
+    });
+
+    reportStore = recordSpin(reportStore, event);
+    localStorage.setItem('rivet-roulette-report-events-v1', JSON.stringify(reportStore));
+    refreshReports();
+  } catch (e) {
+    console.warn('Failed to record spin report event:', e);
+  }
+
   // Construct spoken text
   let spokenText = line;
   if (prize) {
@@ -641,6 +795,7 @@ function loadSettingsIntoDialog() {
   renderAwardRows();
   renderPartnerRows();
   updateAdminSummary();
+  refreshReports();
 
   const errDiv = document.getElementById('settings-error');
   const succDiv = document.getElementById('settings-success');
@@ -906,6 +1061,56 @@ document.addEventListener('DOMContentLoaded', () => {
           errDiv.textContent = 'Failed to save settings locally: ' + e.message;
           errDiv.style.display = 'block';
         }
+      }
+    });
+  }
+
+  // Report event listeners
+  const reportScope = document.getElementById('report-scope');
+  if (reportScope) {
+    reportScope.addEventListener('change', () => {
+      refreshReports();
+    });
+  }
+
+  const btnExportReports = document.getElementById('btn-export-reports');
+  if (btnExportReports) {
+    btnExportReports.addEventListener('click', () => {
+      let store = null;
+      try {
+        const saved = localStorage.getItem('rivet-roulette-report-events-v1');
+        store = saved ? JSON.parse(saved) : null;
+      } catch (_) {}
+
+      const csvContent = reportToCsv(store);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const filename = `rivet-roulette-report-${year}-${month}-${day}.csv`;
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    });
+  }
+
+  const btnResetReports = document.getElementById('btn-reset-reports');
+  if (btnResetReports) {
+    btnResetReports.addEventListener('click', () => {
+      if (window.confirm('Are you sure you want to clear all report events? This cannot be undone.')) {
+        try {
+          localStorage.removeItem('rivet-roulette-report-events-v1');
+        } catch (_) {}
+        refreshReports();
       }
     });
   }

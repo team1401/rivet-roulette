@@ -95,6 +95,18 @@ This offline iPad PWA includes an integrated prize and partner perk system desig
 - Entering an incorrect PIN displays a clear inline error.
 - Closing the settings panel relocks administrative access immediately. The PIN must be entered again for subsequent settings access.
 
+### Admin Reports & Analytics
+- **Local-Only & Privacy-Safe**: To comply with privacy requirements, report events are saved purely on-device in `localStorage` under `rivet-roulette-report-events-v1`. No voice data, visitor identity, device ID, or specific spoken line text is recorded.
+- **Reporting Metrics**: Track metrics dynamically per scope (Today, All Time, or specific recorded dates YYYY-MM-DD):
+  - Total spins
+  - Compliment and insult spin counts and percentages
+  - Total prizes awarded and prize rate
+  - No-prize spin count
+  - Prize wins broken down by spin preference (compliment vs. insult)
+- **Vendor/Perk Breakdown**: A detailed table displays total wins, compliment wins, and insult wins for each configured provider and offer.
+- **CSV Export**: Admins can export the full spin history to a CSV file (e.g. `rivet-roulette-report-YYYY-MM-DD.csv`). Cell contents are neutralized against formula injection (protecting spreadsheet software from malicious `=`, `+`, `-`, or `@` characters).
+- **Data Reset**: A dedicated button allows clearing only report events (requiring confirmation) without affecting deck states, prize settings, or current daily schedules.
+
 ### Offline & Device-Clock Limitations
 - Since this PWA operates entirely on-device and offline, the iPad's system clock serves as the sole time authority.
-- Resetting the device clock, clearing browser site data, or reinstalling the web app can bypass session locks and erase prize configuration, the hidden daily schedule, and awarded counts.
+- Resetting the device clock, clearing browser site data, or reinstalling the web app can bypass session locks and erase prize configuration, the hidden daily schedule, awarded counts, and report history.

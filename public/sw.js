@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rivet-roulette-v6';
+const CACHE_NAME = 'rivet-roulette-v7';
 const ASSETS = [
   './',
   'index.html',
@@ -11,7 +11,8 @@ const ASSETS = [
   'js/app.js',
   'js/deck.js',
   'js/lines.js',
-  'js/prizes.js'
+  'js/prizes.js',
+  'js/reports.js'
 ];
 
 self.addEventListener('install', event => {

@@ -340,6 +340,10 @@ body {
   box-shadow: 0 10px 25px #6e7880;
 }
 
+#settings-dialog {
+  max-width: 780px;
+}
+
 .settings-dialog::backdrop {
   background-color: rgba(33, 40, 48, 0.6);
   backdrop-filter: blur(2px);
@@ -748,4 +752,124 @@ body {
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+/* Reports Section Styling */
+.report-metrics-container {
+  margin-bottom: 1.25rem;
+}
+
+.report-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 480px) {
+  .report-metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.metric-card {
+  border: 2px solid var(--color-text);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+}
+
+.metric-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+  color: var(--color-text);
+}
+
+.metric-pct {
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.report-breakdown-container {
+  margin-bottom: 1.25rem;
+}
+
+.report-empty-state {
+  border: 2px dashed var(--color-text);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text);
+  opacity: 0.7;
+  background-color: var(--color-bg);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.report-table-wrapper {
+  overflow-x: auto;
+  border: 2px solid var(--color-text);
+  border-radius: 8px;
+  margin-top: 0.5rem;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  background-color: var(--color-white);
+  color: var(--color-text);
+  text-align: left;
+}
+
+.report-table th {
+  background-color: var(--color-text);
+  color: var(--color-white);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.7rem;
+}
+
+.report-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(33, 40, 48, 0.15);
+  font-weight: 600;
+}
+
+.report-table tr:last-child td {
+  border-bottom: none;
+}
+
+.report-table tbody tr:nth-child(even) {
+  background-color: var(--color-bg);
+}
+
+.report-table .cell-type {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--color-accent);
+}
+
+.report-table .cell-num {
+  text-align: right;
+  font-weight: 700;
 }
