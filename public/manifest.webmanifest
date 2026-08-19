@@ -1,0 +1,25 @@
+{
+  "name": "Rivet Roulette",
+  "short_name": "Rivet Roulette",
+  "description": "Speak a secure-random, no-repeat compliment or playful insult.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e2e6e9",
+  "theme_color": "#e2e6e9",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

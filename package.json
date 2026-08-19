@@ -1,0 +1,13 @@
+{
+  "name": "rivet-roulette",
+  "version": "1.0.0",
+  "description": "Static iPad PWA demo of Rivet Roulette",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/deck.test.js",
+    "check": "node --check public/js/app.js && node --check public/js/deck.js && node --check public/sw.js && node test/static-check.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

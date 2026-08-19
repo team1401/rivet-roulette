@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#e2e6e9">
+  <title>Rivet Roulette</title>
+  <meta name="description" content="A rally-ready compliment and playful insult machine.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Rivet Roulette">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="masthead">
+      <div class="logo-area">
+        <h1 class="product-title">RIVET ROULETTE</h1>
+      </div>
+      <span class="mode-hint">EXPO HALL</span>
+      <button id="settings-toggle" class="icon-button" aria-label="Open settings" title="Open settings">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <main class="main-content">
+      <section class="result-stage" id="result-stage" aria-label="Rivet Roulette result">
+        <span class="rivet rivet-top-left" aria-hidden="true"></span>
+        <span class="rivet rivet-top-right" aria-hidden="true"></span>
+        <span class="rivet rivet-bottom-left" aria-hidden="true"></span>
+        <span class="rivet rivet-bottom-right" aria-hidden="true"></span>
+        <div class="result-label" id="result-category">READY</div>
+        <div class="result-text reveal-active" id="result-text" role="status" aria-live="polite" aria-atomic="true">Tap below to spin the Rivet Roulette.</div>
+        <div id="prize-proof-container" class="prize-proof-container"></div>
+      </section>
+
+      <section class="choice-container" aria-label="Choose your result">
+        <button id="btn-compliment" class="choice-button compliment-btn">
+          <span class="btn-title">COMPLIMENT</span>
+          <span class="btn-cue">Tap for a warm boost</span>
+        </button>
+        <button id="btn-insult" class="choice-button insult-btn">
+          <span class="btn-title">INSULT</span>
+          <span class="btn-cue">Tap for a playful roast</span>
+        </button>
+      </section>
+    </main>
+
+    <footer class="voice-status-bar">
+      <span id="voice-status-text" aria-live="polite">Preparing an on-device voice…</span>
+    </footer>
+
+    <!-- PIN Authorization Dialog -->
+    <dialog id="pin-dialog" class="settings-dialog" aria-labelledby="pin-dialog-title">
+      <div class="dialog-header">
+        <h2 id="pin-dialog-title">Admin Access</h2>
+        <button id="pin-close" class="close-button" aria-label="Close PIN dialog">×</button>
+      </div>
+      <form id="pin-form" class="dialog-form" method="dialog">
+        <div class="form-group">
+          <label for="pin-input">Admin PIN</label>
+          <input type="password" id="pin-input" class="form-control" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="••••" required>
+          <div id="pin-error" class="inline-error" role="alert" style="display: none; color: var(--color-insult-hex); font-weight: bold; margin-top: 0.25rem;"></div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="dialog-btn secondary-btn">Verify</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Main Settings Dialog -->
+    <dialog id="settings-dialog" class="settings-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-header">
+        <h2 id="dialog-title">Settings</h2>
+        <button id="settings-close" class="close-button" aria-label="Close settings">×</button>
+      </div>
+      <form class="dialog-form" id="settings-form" onsubmit="return false;">
+        <div class="form-group">
+          <label for="voice-select">Speech voice</label>
+          <select id="voice-select" class="form-control">
+            <option value="">Automatic (best available)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="rate-range">Speech speed: <span id="rate-value">1.0</span>x</label>
+          <input type="range" id="rate-range" min="0.5" max="2.0" step="0.1" value="1.0" class="form-control-range">
+        </div>
+
+        <hr class="form-separator">
+        <h3 class="settings-section-title">Prize Configuration</h3>
+        <p class="form-help">Chances apply to each 30-second turn. Book and partner chances combined cannot exceed 100%.</p>
+
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="book-chance">Book Chance (%)</label>
+            <input type="number" id="book-chance" min="0" max="100" step="1" inputmode="numeric" class="form-control" value="0">
+          </div>
+          <div class="form-group">
+            <label for="partner-chance">Partner Chance (%)</label>
+            <input type="number" id="partner-chance" min="0" max="100" step="1" inputmode="numeric" class="form-control" value="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="book-offers">Book Offers (one per line)</label>
+          <textarea id="book-offers" class="form-control textarea-offers" rows="3" placeholder="e.g. 10% off any book"></textarea>
+          <p class="form-help">Each nonempty line is one unlimited-use offer selected at random.</p>
+        </div>
+
+        <div class="form-group">
+          <label>Partner Perks</label>
+          <p class="form-help">Inventory decreases as prizes are awarded. A partner with zero remaining is skipped automatically.</p>
+          <div id="partner-rows-container" class="partner-rows-container">
+            <!-- Dynamic partner rows -->
+          </div>
+          <button type="button" id="btn-add-partner" class="dialog-btn secondary-btn small-btn">+ Add Partner</button>
+        </div>
+
+        <div id="settings-error" class="inline-error" role="alert" style="display: none; color: var(--color-insult-hex); font-weight: bold; margin-bottom: 0.5rem;"></div>
+        <div id="settings-success" class="inline-success" role="alert" style="display: none; color: var(--color-accent-hex); font-weight: bold; margin-bottom: 0.5rem;"></div>
+
+        <div class="form-actions settings-actions">
+          <button id="btn-save-settings" type="button" class="dialog-btn secondary-btn">Save Settings</button>
+        </div>
+
+        <hr class="form-separator">
+        <h3 class="settings-section-title">Actions</h3>
+
+        <div class="form-actions">
+          <button id="btn-replay" type="button" class="dialog-btn secondary-btn" disabled>Replay speech</button>
+          <button id="btn-reset-decks" type="button" class="dialog-btn danger-btn">Reset decks</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
