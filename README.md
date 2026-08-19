@@ -6,7 +6,8 @@ A lightweight, offline-first static iPad progressive web app (PWA) designed for 
 - **Instant Response**: Built using pure vanilla JavaScript and CSS (system fonts only) with zero network latency.
 - **On-Device Speech**: Employs browser-native SpeechSynthesis with high-quality voice prioritization.
 - **Offline Shell**: Fully functional offline after initial load using a Service Worker cache (stale-while-revalidate).
-- **Secure Shuffling**: Implements Web Crypto rejection sampling and Fisher-Yates shuffle bags so lines do not repeat until their category is exhausted.
+- **Expanded Decks**: Includes 144 compliments and 144 playful insults.
+- **Secure Shuffling**: Implements Web Crypto rejection sampling and Fisher-Yates shuffle bags so lines do not repeat until all 144 lines in that category are exhausted.
 
 ## Local Development & Running
 
@@ -15,13 +16,10 @@ To run the application locally without any bundling steps:
 1. **Serve the Static Files**:
    Since the app uses native ES Modules, files must be served over HTTP rather than opened as static local paths. You can use any static server, for example:
    ```bash
-   # Option A: Using wrangler (Cloudflare dev server)
-   npx wrangler dev
-
-   # Option B: Python built-in server
+   # Python built-in server
    python3 -m http.server -d public
    ```
-2. Open `http://localhost:8787` (Wrangler) or `http://localhost:8000` (Python) in your browser.
+2. Open `http://localhost:8000` in your browser.
 
 ## Tests & Static Checks
 
@@ -36,15 +34,22 @@ Unit tests validate deck counts, uniqueness, Fisher-Yates boundary conditions, a
   npm run check
   ```
 
-## Cloudflare Deployment
+## Airstream Deployment
 
-The project contains a `wrangler.jsonc` file pre-configured for Cloudflare static assets.
+The primary deployment runs on the physical Airstream server and is available over the Tailnet at:
 
-1. Install Wrangler globally or run it via npx:
-   ```bash
-   npx wrangler deploy
-   ```
-2. It will deploy all files inside the `public/` directory as highly-available static assets.
+`https://airstream.tail4532cc.ts.net:10443`
+
+Deployment files are under `deploy/airstream/`. The nginx container binds only to `127.0.0.1:18088`; Tailscale Serve provides HTTPS on port `10443`. The app is not exposed directly on the LAN or public internet.
+
+Deploy from the repository root:
+
+```bash
+rsync -a --delete public/ airstream:/opt/rivet-roulette/public/
+rsync -a deploy/airstream/ airstream:/opt/rivet-roulette/
+ssh airstream 'cd /opt/rivet-roulette && docker compose up -d'
+ssh airstream 'sudo tailscale serve --bg --https=10443 http://127.0.0.1:18088'
+```
 
 ## iPad PWA Installation
 

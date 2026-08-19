@@ -33,8 +33,8 @@ globalThis.window = {
 };
 
 test('Lines: exact content counts and case-insensitive uniqueness', () => {
-  assert.strictEqual(compliments.length, 72, 'Must have exactly 72 compliments');
-  assert.strictEqual(insults.length, 72, 'Must have exactly 72 insults');
+  assert.strictEqual(compliments.length, 144, 'Must have exactly 144 compliments');
+  assert.strictEqual(insults.length, 144, 'Must have exactly 144 insults');
 
   const seen = new Set();
   for (const line of [...compliments, ...insults]) {
@@ -75,13 +75,13 @@ test('Deck: deterministic full-deck no-repeat behavior', () => {
   const deck = new Deck('compliment', compliments, 'test-compliment-deck');
 
   const drawn = [];
-  for (let i = 0; i < 72; i++) {
+  for (let i = 0; i < 144; i++) {
     drawn.push(deck.draw());
   }
 
-  // Check that all 72 drawn items are unique (every item drawn exactly once)
+  // Check that all 144 drawn items are unique (every item drawn exactly once)
   const uniqueDrawn = new Set(drawn);
-  assert.strictEqual(uniqueDrawn.size, 72, 'All 72 draws in a round must be unique');
+  assert.strictEqual(uniqueDrawn.size, 144, 'All 144 draws in a round must be unique');
 
   // Check that all drawn items match the original compliment list
   for (const item of drawn) {
@@ -105,7 +105,7 @@ test('Deck: invalid persisted state recovery', () => {
   window.localStorage.setItem(storageKey, '{invalid json}');
   let deck = new Deck('compliment', compliments, storageKey);
   assert.strictEqual(deck.currentIndex, 0, 'Corrupt JSON should fall back to 0 index');
-  assert.strictEqual(deck.shuffledIndices.length, 72, 'Should regenerate deck');
+  assert.strictEqual(deck.shuffledIndices.length, 144, 'Should regenerate deck');
 
   // Scenario 2: JSON is valid but indices array has wrong size
   window.localStorage.setItem(storageKey, JSON.stringify({
@@ -115,10 +115,10 @@ test('Deck: invalid persisted state recovery', () => {
   }));
   deck = new Deck('compliment', compliments, storageKey);
   assert.strictEqual(deck.currentIndex, 0, 'Wrong size indices should recover to 0 index');
-  assert.strictEqual(deck.shuffledIndices.length, 72, 'Should regenerate deck');
+  assert.strictEqual(deck.shuffledIndices.length, 144, 'Should regenerate deck');
 
   // Scenario 3: JSON has indices that are out of bounds
-  const badIndices = Array.from({ length: 72 }, (_, i) => i);
+  const badIndices = Array.from({ length: 144 }, (_, i) => i);
   badIndices[10] = 999; // Out of bounds index
   window.localStorage.setItem(storageKey, JSON.stringify({
     shuffledIndices: badIndices,
@@ -129,7 +129,7 @@ test('Deck: invalid persisted state recovery', () => {
   assert.strictEqual(deck.currentIndex, 0, 'Out-of-bounds indices should trigger recovery');
 
   // Scenario 4: JSON has invalid currentIndex (e.g. out of range or negative)
-  const goodIndices = Array.from({ length: 72 }, (_, i) => i);
+  const goodIndices = Array.from({ length: 144 }, (_, i) => i);
   window.localStorage.setItem(storageKey, JSON.stringify({
     shuffledIndices: goodIndices,
     currentIndex: -1,
@@ -140,13 +140,13 @@ test('Deck: invalid persisted state recovery', () => {
 
   // Scenario 5: indices are in range but contain duplicates
   window.localStorage.setItem(storageKey, JSON.stringify({
-    shuffledIndices: Array(72).fill(0),
+    shuffledIndices: Array(144).fill(0),
     currentIndex: 5,
     lastDrawnItem: compliments[0]
   }));
   deck = new Deck('compliment', compliments, storageKey);
   assert.strictEqual(deck.currentIndex, 0, 'Duplicate indices should trigger recovery');
-  assert.strictEqual(new Set(deck.shuffledIndices).size, 72, 'Recovered deck must be a full permutation');
+  assert.strictEqual(new Set(deck.shuffledIndices).size, 144, 'Recovered deck must be a full permutation');
 });
 
 test('Session: static constants check', () => {
@@ -187,13 +187,13 @@ test('HTML: PIN dialog and prize proof elements exist', () => {
   assert.ok(html.includes('id="prize-proof-container"'), 'HTML must have container with id="prize-proof-container"');
 });
 
-test('SW: prize and report modules are listed in cache v8', () => {
+test('SW: prize and report modules are listed in cache v9', () => {
   const swPath = path.join(__dirname, '../public/sw.js');
   const sw = fs.readFileSync(swPath, 'utf8');
 
   assert.ok(sw.includes('js/prizes.js'), 'Service worker assets must include js/prizes.js');
   assert.ok(sw.includes('js/reports.js'), 'Service worker assets must include js/reports.js');
-  assert.ok(sw.includes("rivet-roulette-v8"), 'Service worker cache version must be updated to v8');
+  assert.ok(sw.includes("rivet-roulette-v9"), 'Service worker cache version must be updated to v9');
 });
 
 test('Admin reports: settings dialog is wide enough for the full breakdown table', () => {
