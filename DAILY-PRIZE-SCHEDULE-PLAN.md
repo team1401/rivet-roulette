@@ -2,11 +2,11 @@
 
 **Goal:** Replace percentage-per-spin prizes with a persistent, randomized daily schedule from 8:00 AM to 5:00 PM.
 
-**Architecture:** Keep the app static and offline. Store prize configuration and one hidden daily schedule in `localStorage`. Generate one scheduled token per physical prize unit using cryptographic random integers. Stratify each configured prize type across the event day, merge all tokens chronologically, and award at most the earliest due token per 30-second visitor turn.
+**Architecture:** Keep the app static and offline. Store prize configuration and one hidden daily schedule in `localStorage`. Generate one scheduled token per physical prize unit using cryptographic random integers. Shuffle all remaining author and partner tokens into one pool, stratify that pool across the remaining event day, and award at most the earliest due token per 30-second visitor turn.
 
 **Assumptions**
 
-- "My awards" means Nomad's Edge book awards.
+- "My awards" means Brian Smith - Author awards.
 - Every book award and vendor offer has its own non-negative integer daily quantity.
 - Default hours are 08:00 through 17:00 in the iPad's local timezone.
 - A prize released during a traffic gap remains due until the next spin, but no prizes are awarded after closing.

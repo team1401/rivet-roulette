@@ -52,6 +52,30 @@ test('Reports: createSpinEvent records only privacy-safe spin and prize fields',
   assert.throws(() => createSpinEvent({ category: 'other', timestamp: 1, id: 'bad' }), /category/i);
 });
 
+test('Reports: author awards default to Brian Smith - Author as provider', () => {
+  const event = createSpinEvent({
+    category: 'compliment',
+    prize: bookPrize,
+    timestamp: localTimestamp(2026, 7, 19),
+    id: 'author-spin'
+  });
+
+  assert.equal(event.prize.provider, 'Brian Smith - Author');
+});
+
+test('Reports: historical author events migrate away from the old provider label', () => {
+  const oldEvent = createSpinEvent({
+    category: 'insult',
+    prize: bookPrize,
+    timestamp: localTimestamp(2026, 7, 19),
+    id: 'old-author-spin',
+    bookProvider: "Nomad's Edge Books"
+  });
+
+  const normalized = normalizeReportStore({ version: 1, events: [oldEvent] });
+  assert.equal(normalized.events[0].prize.provider, 'Brian Smith - Author');
+});
+
 test('Reports: corrupt events are discarded and duplicate IDs are ignored', () => {
   const valid = createSpinEvent({
     category: 'insult',

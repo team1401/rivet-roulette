@@ -1,5 +1,7 @@
 import { getRandomInt } from './deck.js';
 
+const SCHEDULE_VERSION = 2;
+
 // Helper: Get local YYYY-MM-DD string
 export function getDateKey(date) {
   const yyyy = date.getFullYear();
@@ -159,68 +161,59 @@ export function validateConfig(config) {
 }
 
 function generateSlots(config, opensAt, closesAt, startMs, alreadyAwardedCounts, randomIntFn = getRandomInt) {
-  const slots = [];
   const startSchedulingFrom = Math.max(opensAt, startMs);
   const remainingDuration = closesAt - startSchedulingFrom;
+  const tokens = [];
 
-  // Process awards
   config.awards.forEach(award => {
     const awardedCount = alreadyAwardedCounts[award.id] || 0;
     const remainingQty = Math.max(0, award.dailyQuantity - awardedCount);
-    if (remainingQty <= 0) return;
-
     for (let i = 0; i < remainingQty; i++) {
-      let releaseAt;
-      if (remainingDuration <= 0) {
-        releaseAt = closesAt;
-      } else {
-        const bandStart = Math.floor(startSchedulingFrom + i * remainingDuration / remainingQty);
-        const bandEnd = Math.floor(startSchedulingFrom + (i + 1) * remainingDuration / remainingQty);
-        const bandSize = bandEnd - bandStart;
-        const offset = bandSize > 0 ? randomIntFn(bandSize) : 0;
-        releaseAt = bandStart + offset;
-      }
-
-      slots.push({
-        id: `${award.id}-${i}-${generateUUID()}`,
+      tokens.push({
         prizeId: award.id,
         type: 'book',
-        offer: award.offer,
-        releaseAt
+        offer: award.offer
       });
     }
   });
 
-  // Process partners
   config.partners.forEach(partner => {
     const awardedCount = alreadyAwardedCounts[partner.id] || 0;
     const remainingQty = Math.max(0, partner.dailyQuantity - awardedCount);
-    if (remainingQty <= 0) return;
-
     for (let i = 0; i < remainingQty; i++) {
-      let releaseAt;
-      if (remainingDuration <= 0) {
-        releaseAt = closesAt;
-      } else {
-        const bandStart = Math.floor(startSchedulingFrom + i * remainingDuration / remainingQty);
-        const bandEnd = Math.floor(startSchedulingFrom + (i + 1) * remainingDuration / remainingQty);
-        const bandSize = bandEnd - bandStart;
-        const offset = bandSize > 0 ? randomIntFn(bandSize) : 0;
-        releaseAt = bandStart + offset;
-      }
-
-      slots.push({
-        id: `${partner.id}-${i}-${generateUUID()}`,
+      tokens.push({
         prizeId: partner.id,
         type: 'partner',
         vendor: partner.vendor,
-        offer: partner.offer,
-        releaseAt
+        offer: partner.offer
       });
     }
   });
 
-  // Sort slots by releaseAt ascending
+  for (let i = tokens.length - 1; i > 0; i--) {
+    const j = randomIntFn(i + 1);
+    [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
+  }
+
+  const lateStart = startSchedulingFrom > opensAt && startSchedulingFrom < closesAt;
+  const slots = tokens.map((token, index) => {
+    let releaseAt = closesAt;
+    if (remainingDuration > 0) {
+      const bandStart = Math.floor(startSchedulingFrom + index * remainingDuration / tokens.length);
+      const bandEnd = Math.floor(startSchedulingFrom + (index + 1) * remainingDuration / tokens.length);
+      const bandSize = bandEnd - bandStart;
+      const randomWindow = lateStart && index === 0 ? Math.min(bandSize, 60_000) : bandSize;
+      const offset = randomWindow > 0 ? randomIntFn(randomWindow) : 0;
+      releaseAt = bandStart + offset;
+    }
+
+    return {
+      id: `${token.prizeId}-${index}-${generateUUID()}`,
+      ...token,
+      releaseAt
+    };
+  });
+
   slots.sort((a, b) => a.releaseAt - b.releaseAt);
   return slots;
 }
@@ -239,7 +232,7 @@ export function createDailySchedule(config, todayDateObj, randomIntFn = getRando
   const slots = generateSlots(norm, opensAt, closesAt, todayDateObj.getTime(), {}, randomIntFn);
 
   return {
-    version: 1,
+    version: SCHEDULE_VERSION,
     dateKey,
     configSignature,
     opensAt,
@@ -305,7 +298,7 @@ export function reconcileDailySchedule(config, schedule, nowDateObj, randomIntFn
 
   if (
     schedule &&
-    schedule.version === 1 &&
+    schedule.version === SCHEDULE_VERSION &&
     schedule.dateKey === currentDateKey &&
     schedule.configSignature === currentSignature &&
     Array.isArray(schedule.slots) &&
@@ -317,7 +310,7 @@ export function reconcileDailySchedule(config, schedule, nowDateObj, randomIntFn
   }
 
   // Otherwise, we need to generate a new schedule or reconcile it.
-  if (schedule && schedule.version === 1 && schedule.dateKey === currentDateKey) {
+  if (schedule && (schedule.version === 1 || schedule.version === SCHEDULE_VERSION) && schedule.dateKey === currentDateKey) {
     const awarded = Array.isArray(schedule.awarded) ? schedule.awarded : [];
     const awardedCounts = countAwardedByPrize(schedule);
 
@@ -330,7 +323,7 @@ export function reconcileDailySchedule(config, schedule, nowDateObj, randomIntFn
     const slots = generateSlots(norm, opensAt, closesAt, nowDateObj.getTime(), awardedCounts, randomIntFn);
 
     return {
-      version: 1,
+      version: SCHEDULE_VERSION,
       dateKey: currentDateKey,
       configSignature: currentSignature,
       opensAt,

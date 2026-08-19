@@ -187,13 +187,13 @@ test('HTML: PIN dialog and prize proof elements exist', () => {
   assert.ok(html.includes('id="prize-proof-container"'), 'HTML must have container with id="prize-proof-container"');
 });
 
-test('SW: prize and report modules are listed in cache v7', () => {
+test('SW: prize and report modules are listed in cache v8', () => {
   const swPath = path.join(__dirname, '../public/sw.js');
   const sw = fs.readFileSync(swPath, 'utf8');
 
   assert.ok(sw.includes('js/prizes.js'), 'Service worker assets must include js/prizes.js');
   assert.ok(sw.includes('js/reports.js'), 'Service worker assets must include js/reports.js');
-  assert.ok(sw.includes("rivet-roulette-v7"), 'Service worker cache version must be updated to v7');
+  assert.ok(sw.includes("rivet-roulette-v8"), 'Service worker cache version must be updated to v8');
 });
 
 test('Admin reports: settings dialog is wide enough for the full breakdown table', () => {
@@ -214,4 +214,16 @@ test('Admin reports: iPad CSV download keeps the Blob URL alive long enough', ()
     app.includes('window.setTimeout(() => URL.revokeObjectURL(url), 120_000);'),
     'CSV Blob URL must remain available while iPad Safari confirms the download'
   );
+});
+
+test('Author awards use Brian Smith - Author as the provider name', () => {
+  const app = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
+  const reports = fs.readFileSync(path.join(__dirname, '../public/js/reports.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../public/index.html'), 'utf8');
+
+  assert.ok(app.includes('Brian Smith - Author'));
+  assert.ok(reports.includes('Brian Smith - Author'));
+  assert.ok(html.includes('Brian Smith - Author awards'));
+  assert.ok(!app.includes("Nomad's Edge Books"));
+  assert.ok(!reports.includes("Nomad's Edge Books"));
 });

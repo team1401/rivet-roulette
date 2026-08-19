@@ -15,23 +15,24 @@
 
 - Percentage-per-spin prize rolls are removed.
 - Expo Hall hours default to 8:00 AM through 5:00 PM in the iPad's local timezone.
-- Every Nomad's Edge award and every partner offer has a configurable nonnegative integer `prizes per day` quantity.
+- Every Brian Smith - Author award and every partner offer has a configurable nonnegative integer `prizes per day` quantity.
 - Each configured unit becomes one hidden daily prize token.
-- The algorithm divides the operating window into equal bands separately for each prize type and places one token at a cryptographically random time inside each band.
-- Example: three Vendor A prizes create one randomized release in each third of the open day.
-- All award and vendor tokens are merged and sorted into one coordinated daily timeline.
+- All remaining author and partner tokens are shuffled into one coordinated pool.
+- The algorithm divides the remaining operating window into one equal band per token and places one token at a cryptographically random time inside each band.
+- Example: three Vendor A prizes and two author awards create five coordinated release bands rather than separate vendor-specific timelines.
 - A token cannot be awarded before its release time.
 - The first eligible turn at or after release claims the earliest due token.
 - Only one token is claimed per 30-second turn. Additional overdue tokens remain queued for later turns.
 - No token is awarded before opening or at/after closing.
 - Unawarded tokens do not carry into the next local calendar day. A fresh schedule is generated for the new day.
-- If the app first starts after opening, the full configured inventory is distributed across the remaining open hours rather than creating an immediate overdue backlog.
+- If the app first starts after opening, the first remaining token releases within one minute and the rest are distributed across the remaining open hours rather than creating an immediate overdue backlog.
 
 ## Persistence and settings edits
 
 - The complete schedule is generated once and persisted so refreshes, PWA reopening, sleep, and offline operation do not reroll release times.
 - Same-day settings edits preserve already-awarded counts by stable prize ID.
-- Only each prize's remaining daily quantity is rescheduled after a settings change.
+- Only the combined remaining daily quantity is rescheduled after a settings change.
+- Version-1 schedules migrate to version 2 from the current time while preserving awarded history.
 - Reducing a daily quantity below its already-awarded count never creates negative inventory or additional tokens.
 - Malformed saved schedule arrays are discarded and regenerated rather than breaking the kiosk.
 
@@ -41,7 +42,7 @@
 - Correct PIN opens settings; closing settings relocks it.
 - Settings retain voice/rate controls and provide:
   - Native Expo Opens and Expo Closes time controls
-  - Add/edit/remove Nomad's Edge award rows
+  - Add/edit/remove Brian Smith - Author award rows
   - Exact award offer text
   - Prizes per day for each award
   - Add/edit/remove partner rows
@@ -57,7 +58,7 @@
 The visible prize proof includes:
 
 - Clear prize headline
-- Nomad's Edge Books or partner vendor name
+- Brian Smith - Author or partner vendor name
 - Exact offer text
 - Awarded local date/time with timezone
 - Valid-until local date/time, one hour later

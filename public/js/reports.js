@@ -35,7 +35,9 @@ export function normalizeReportStore(raw) {
       if (e.prize !== null && typeof e.prize === 'object') {
         const pId = e.prize.prizeId || e.prize.id;
         const pType = e.prize.type;
-        const pProvider = e.prize.provider || e.prize.vendor;
+        const pProvider = pType === 'book'
+          ? 'Brian Smith - Author'
+          : e.prize.provider || e.prize.vendor;
         const pOffer = e.prize.offer;
 
         if (typeof pId === 'string' && typeof pType === 'string' && typeof pOffer === 'string') {
@@ -85,7 +87,7 @@ export function createSpinEvent({ category, prize, timestamp, id, bookProvider }
   if (prize) {
     let provider = '';
     if (prize.type === 'book') {
-      provider = bookProvider || "Nomad's Edge Books";
+      provider = bookProvider || 'Brian Smith - Author';
     } else {
       provider = prize.vendor || prize.provider || '';
     }

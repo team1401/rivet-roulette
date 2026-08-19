@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rivet-roulette-v7';
+const CACHE_NAME = 'rivet-roulette-v8';
 const ASSETS = [
   './',
   'index.html',

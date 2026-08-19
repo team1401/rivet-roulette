@@ -74,10 +74,11 @@ This offline iPad PWA includes an integrated prize and partner perk system desig
 
 ### Prize Model & Configuration
 - **Daily Randomized Schedule**: Prizes are distributed across a configurable daily window (defaulting to 08:00 through 17:00 in the iPad's local timezone).
-- **Prizes & Inventory**: Both Nomad's Edge book awards ("Your Awards") and Partner Perks are configured with stable IDs and non-negative daily quantities. The system generates one hidden prize token per unit.
-- **Stratified Release Times**: For each configured prize of quantity N, the day's event interval is divided into N equal time bands, and one release time is selected cryptographically at random within each band. All tokens are then merged by release time.
+- **Prizes & Inventory**: Both Brian Smith - Author awards ("Your Awards") and Partner Perks are configured with stable IDs and non-negative daily quantities. The system generates one hidden prize token per unit.
+- **Stratified Release Times**: All remaining author and partner tokens are shuffled into one coordinated pool. The open interval is divided into one equal time band per token, with a cryptographically random release inside each band.
+- **Late Starts**: When a schedule is first created or migrated after opening, the first remaining token releases within one minute. The rest remain randomized across the remaining open hours.
 - **Claim Semantics**: Prizes can only be claimed during active hours (between opening and closing times). A spin may claim only the earliest due unclaimed token. Overdue tokens remain due if traffic is absent, but multiple overdue tokens require multiple visitor turns (respecting the 30-second spin lock).
-- **Persistence & Reconciliation**: The schedule and awarded counts are persisted in `localStorage`. Saving edits on the same day preserves already awarded counts and reschedules only the remaining quantity. A new calendar day resets awarded counts and generates a new daily schedule.
+- **Persistence & Reconciliation**: The version-2 schedule and awarded counts are persisted in `localStorage`. Saving edits or migrating an older schedule on the same day preserves already awarded counts and reschedules only the remaining quantity. A new calendar day resets awarded counts and generates a new daily schedule.
 - **Admin Summary**: An admin-only summary displays today's total scheduled, awarded, and remaining counts without exposing future release times.
 
 ### Screenshot-Friendly Proof-Photo Workflow

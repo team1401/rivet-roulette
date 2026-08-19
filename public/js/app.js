@@ -20,7 +20,7 @@ import {
 const SESSION_DURATION_MS = 30_000;
 const PRIZE_VALIDITY_MS = 60 * 60 * 1000;
 const ADMIN_PIN = '4167';
-const BOOK_PROVIDER = "Nomad's Edge Books";
+const BOOK_PROVIDER = 'Brian Smith - Author';
 
 // State Management
 let complimentDeck;
