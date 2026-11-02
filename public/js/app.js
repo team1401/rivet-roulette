@@ -17,10 +17,10 @@ import {
   reportToCsv
 } from './reports.js';
 
-const SESSION_DURATION_MS = 30_000;
-const PRIZE_VALIDITY_MS = 60 * 60 * 1000;
-const ADMIN_PIN = '4167';
-const BOOK_PROVIDER = 'Brian Smith - Author';
+export const SESSION_DURATION_MS = 30_000;
+export const PRIZE_VALIDITY_MS = 60 * 60 * 1000;
+export const ADMIN_PIN = '4167';
+export const BOOK_PROVIDER = 'Brian Smith - Author';
 
 // State Management
 let complimentDeck;
@@ -65,7 +65,7 @@ try {
 /**
  * Searches the voice list for the best option matching priority criteria.
  */
-function getBestFallbackVoice(voicesList) {
+export function getBestFallbackVoice(voicesList) {
   if (!voicesList || voicesList.length === 0) return null;
 
   const englishVoices = voicesList.filter(v => v.lang.toLowerCase().startsWith('en'));
@@ -223,7 +223,7 @@ function speakText(text) {
 }
 
 // Format date-time helper for proof panel
-function formatDateTime(date) {
+export function formatDateTime(date) {
   const options = {
     year: 'numeric',
     month: '2-digit',
@@ -238,7 +238,7 @@ function formatDateTime(date) {
 }
 
 // Escape HTML helper
-function escapeHtml(str) {
+export function escapeHtml(str) {
   if (typeof str !== 'string') return '';
   return str
     .replace(/&/g, '&amp;')
@@ -249,7 +249,7 @@ function escapeHtml(str) {
 }
 
 // Render the proof panel
-function renderPrizeProof(prize) {
+export function renderPrizeProof(prize) {
   const container = document.getElementById('prize-proof-container');
   const resultStage = document.getElementById('result-stage');
   if (!container) return;
@@ -316,7 +316,7 @@ function loadSavedPrizeConfig() {
 }
 
 // Generate unique slot IDs
-function generateUUID() {
+export function generateUUID() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
