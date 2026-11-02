@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert';
+import { fileURLToPath } from 'node:url';
 
-const baseDir = '/Users/helix/.Hermes/workspace/rivet-roulette';
+const baseDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
 console.log('Running static, PWA, and accessibility checks...');
 
