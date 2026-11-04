@@ -96,9 +96,9 @@ The other `*.md` files at the repository root are the project's working document
 
 The primary deployment runs on the physical Airstream server and is reachable over the Tailnet at:
 
-`https://airstream.tail4532cc.ts.net:10443`
+`https://<tailscale-host>:10443`
 
-The nginx container binds to `127.0.0.1:18088` for Tailscale Serve and to the Airstream LAN address `192.168.50.5:18088`. It is not bound to every interface and is not exposed to the public internet. LAN access is `http://192.168.50.5:18088`.
+The nginx container binds to `127.0.0.1:18088` for Tailscale Serve and to the Airstream LAN address `<home-assistant-host>:18088`. It is not bound to every interface and is not exposed to the public internet. LAN access is `http://<home-assistant-host>:18088`.
 
 Use the Tailnet HTTPS URL for PWA installation and verified offline caching: service workers require a secure context, which the plain HTTP LAN URL does not provide. The LAN URL is fine for normal online viewing.
 
